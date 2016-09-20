@@ -70,7 +70,7 @@ class GraphicCalculator extends JFrame implements KeyListener {
         outputArea[MAIN_SCREEN].setEditable(false);
         outputArea[MAIN_SCREEN].setBackground(new Color(235, 235, 235));
         outputArea[MAIN_SCREEN].setHorizontalAlignment(JTextField.RIGHT);
-        outputArea[MAIN_SCREEN].setFont(new Font("Arial", Font.LAYOUT_RIGHT_TO_LEFT, 32));
+        outputArea[MAIN_SCREEN].setFont(new Font("Arial", Font.LAYOUT_RIGHT_TO_LEFT, 30));
         add(outputArea[MAIN_SCREEN]);
     }
 
@@ -134,6 +134,15 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
     void digitsHandler(char digit) {
         if(getScreenSymbolsNum(MAIN_SCREEN) >= MAIN_SCREEN_MAX_SYMBOLS) return;
+        if(getScreenSymbolsNum(MAIN_SCREEN) == 1 && screenBuffer[MAIN_SCREEN].charAt(0) == '0') {
+            if(digit == '0') {
+                return;
+            }
+            isDecimal = true;
+            screenBuffer[MAIN_SCREEN].replace(0, 1, String.valueOf(digit));
+            updateScreen(MAIN_SCREEN, screenBuffer[MAIN_SCREEN].toString());
+            return;
+        }
 
         isDecimal = true;
         screenBuffer[MAIN_SCREEN].append(digit);
@@ -245,6 +254,7 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
     void plusMinusHandler() {
         if(getScreenSymbolsNum(MAIN_SCREEN) <= 0) return;
+        if(getScreenSymbolsNum(MAIN_SCREEN) == 1 && screenBuffer[MAIN_SCREEN].charAt(0) == '0') return;
 
         double currentValue = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
         currentValue *= -1.0d;
