@@ -10,27 +10,29 @@ import java.util.*;
 import javax.swing.*;
 import javax.swing.border.*;
 
-class GraphicCalculator extends JFrame {
+class GraphicCalculator extends JFrame implements KeyListener {
     // Some calculator constants
     private final byte MAIN_SCREEN = 0;
     private final byte EXTRA_SCREEN = 1;
-    private final byte MAIN_SCREEN_MAX_SYMBOLS = 15;
-    private final byte EXTRA_SCREEN_MAX_SYMBOLS = 32;
-    private final byte MAX_OPERATIONS = 10;
+    private final byte MAIN_SCREEN_MAX_SYMBOLS = 15; // max chars on main (big) screen.
+    private final byte MAX_OPERATIONS = 64; // max operations count (64 by default but might be more).
 
     // primitives
-    private byte storedCount = 0;
-    private char lastOperation = 0;
-    private boolean dotUsed = false;
-    private boolean isDecimal = false;
-    private boolean[] hasItem = new boolean[MAX_OPERATIONS];
-    private char[] storedOperation = new char[MAX_OPERATIONS];
-    private double[] storedNumber = new double[MAX_OPERATIONS];
+    private byte storedCount = 0; // stored number of arithmetic operations
+    private char lastOperation = 0; // last arithmetic operation
+    private boolean dotUsed = false; // is dot was type on the big screen
+    private boolean isDecimal = false; // is digit was last typed symbol
+    private char[] storedOperation = new char[MAX_OPERATIONS]; // stored operators like divide, multiplication, substraction etc.
+    private double[] storedNumber = new double[MAX_OPERATIONS]; // stored operands. every operand has own operator (same indexes).
+    private boolean[] hasItem = new boolean[MAX_OPERATIONS]; // Is the current index and has an item (operator+operand)
 
     // objects
-    private StringBuilder[] screenBuffer = new StringBuilder[]{ new StringBuilder(), new StringBuilder() }; // current number of digits on the display
+    private StringBuilder[] screenBuffer = new StringBuilder[]{ new StringBuilder(), new StringBuilder() }; // buffers of 2 both displays
+
+    /* displays must be exactly JTextField because of text copy and extension out of calculator bounds with possible to scroll it with mouse (by using selection) */
     private JTextField[] outputArea = { new JTextField("0", SwingConstants.RIGHT), new JTextField("", SwingConstants.RIGHT) };
-    private JPanel buttonPanel = new JPanel(new GridLayout(5,4));
+
+    private JPanel buttonPanel = new JPanel(new GridLayout(5,4)); // panel with buttons with grid layout
     private JButton[] cDigits = new JButton[20];
 
 
@@ -84,7 +86,8 @@ class GraphicCalculator extends JFrame {
 
 
     void setupButtons() {
-        setupButtonsPanel(); // must be set before setting buttons
+        /* must be set before setting buttons */
+        setupButtonsPanel();
 
         final char digitalGrid[] = { 'C', '\u221a', '\u00ab', '\u00f7',
                                      '7',    '8',      '9',   '\u00d7', 
@@ -212,8 +215,8 @@ class GraphicCalculator extends JFrame {
         lastOperation = '\u00d7';
         pushValueToStack(currentValue, lastOperation);
     }
-    
-    
+
+
     void substractionHandler() {
         if(storedCount >= MAX_OPERATIONS || (lastOperation == '-' && !isDecimal)) return;
         
@@ -225,8 +228,8 @@ class GraphicCalculator extends JFrame {
         lastOperation = '-';
         pushValueToStack(currentValue, lastOperation);
     }
-    
-    
+
+
     void additionHandler() {
         if(storedCount >= MAX_OPERATIONS || (lastOperation == '+' && !isDecimal)) return;
         
@@ -271,7 +274,7 @@ class GraphicCalculator extends JFrame {
             return;
         }
 
-        double lastValue = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
+        double lastValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
         
         if(lastValue == 0.0d && lastOperation == '\u00f7') {
             showResult("Cannot divide by zero");
@@ -340,13 +343,13 @@ class GraphicCalculator extends JFrame {
         }
         updateScreen(MAIN_SCREEN, result);
     }
-    
-    
+
+
     void setDefaults() {
         showResult();
     }
-    
-    
+
+
     void clearInfoOnMainScreen() {
         clearScreen(MAIN_SCREEN);
         updateScreen(EXTRA_SCREEN);
@@ -377,8 +380,8 @@ class GraphicCalculator extends JFrame {
         clearScreen(EXTRA_SCREEN);
         screenBuffer[MAIN_SCREEN].setLength(0);
     }
-    
-    
+
+
     void showResult(String valueToDisplay) {
         dotUsed = false;
         storedCount = 0;
@@ -389,8 +392,8 @@ class GraphicCalculator extends JFrame {
         clearScreen(EXTRA_SCREEN);
         screenBuffer[MAIN_SCREEN].setLength(0);
     }
-    
-    
+
+
     void clearScreen(byte screen) {
         if(screen == MAIN_SCREEN) {
             updateScreen(MAIN_SCREEN, "0");
@@ -419,13 +422,13 @@ class GraphicCalculator extends JFrame {
             outputArea[MAIN_SCREEN].setText(String.valueOf(Math.round(result)));
         }
     }
-    
-    
+
+
     void showOn(String result) {
         outputArea[MAIN_SCREEN].setText(result);
     }
 
-    
+
     boolean pushValueToBuffer(double value, char operation) {
         if(isDecimal) {
             appendToExtraScreen(value, operation);
@@ -440,7 +443,7 @@ class GraphicCalculator extends JFrame {
         }
         return true;
     }
-    
+
 
     void appendToExtraScreen(double value, char operation) {
         if(isInteger(value)) {
@@ -453,16 +456,16 @@ class GraphicCalculator extends JFrame {
         screenBuffer[EXTRA_SCREEN].append(operation);
         screenBuffer[EXTRA_SCREEN].append(' ');
     }
-    
-    
+
+
     void pushValueToStack(double value, char operation) {
         hasItem[storedCount] = true;
         storedNumber[storedCount] = value;
         storedOperation[storedCount] = operation;
         storedCount++;
     }
-    
-    
+
+
     void pushValueToStack(double value) {
         hasItem[storedCount] = true;
         storedNumber[storedCount] = value;
@@ -483,5 +486,20 @@ class GraphicCalculator extends JFrame {
 
     boolean isInteger(double num) {
         return num % 1 == 0;
+    }
+    
+    
+    /** Handle the key typed event from the text field. */
+    public void keyTyped(KeyEvent e) {
+        System.out.println("keyTyped");
+    }
+    /** Handle the key-pressed event from the text field. */
+    public void keyPressed(KeyEvent e) {
+        System.out.println("keyPressed");
+    }
+
+    /** Handle the key-released event from the text field. */
+    public void keyReleased(KeyEvent e) {
+        System.out.println("keyReleased");
     }
 }
