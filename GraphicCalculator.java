@@ -16,7 +16,7 @@ class GraphicCalculator extends JFrame {
     private final byte EXTRA_SCREEN = 1;
     private final byte MAIN_SCREEN_MAX_SYMBOLS = 15;
     private final byte EXTRA_SCREEN_MAX_SYMBOLS = 32;
-    private final byte MAX_OPERATIONS = 24;
+    private final byte MAX_OPERATIONS = 10;
 
     // primitives
     private byte storedCount = 0;
