@@ -10,7 +10,7 @@ import java.util.*;
 import javax.swing.*;
 import javax.swing.border.*;
 
-class GraphicCalculator extends JFrame implements KeyListener {
+class GraphicCalculator extends JFrame {
     // Some calculator constants
     private final byte MAIN_SCREEN = 0;
     private final byte EXTRA_SCREEN = 1;
@@ -61,6 +61,7 @@ class GraphicCalculator extends JFrame implements KeyListener {
         setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
         setLayout(null);
         setResizable(false);
+        setIconImage(new ImageIcon("icon.png").getImage());
     }
 
 
@@ -138,10 +139,15 @@ class GraphicCalculator extends JFrame implements KeyListener {
             if(digit == '0') {
                 return;
             }
-            isDecimal = true;
-            screenBuffer[MAIN_SCREEN].replace(0, 1, String.valueOf(digit));
-            updateScreen(MAIN_SCREEN, screenBuffer[MAIN_SCREEN].toString());
-            return;
+            if(digit == '.') {
+                screenBuffer[MAIN_SCREEN].append(digit);
+                updateScreen(MAIN_SCREEN, screenBuffer[MAIN_SCREEN].toString());
+            } else {
+                isDecimal = true;
+                screenBuffer[MAIN_SCREEN].replace(0, 1, String.valueOf(digit));
+                updateScreen(MAIN_SCREEN, screenBuffer[MAIN_SCREEN].toString());
+            }
+           return;
         }
 
         isDecimal = true;
@@ -196,11 +202,16 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
 
     void divisionHandler() {
-        if(storedCount >= MAX_OPERATIONS || (lastOperation == '\u00f7' && !isDecimal)) return;
+        if(storedCount >= MAX_OPERATIONS) return;
+        if(!isDecimal && getScreenSymbolsNum(EXTRA_SCREEN) > 0) {
+            replaceLastOperation('\u00f7');
+            updateScreen(EXTRA_SCREEN);
+            return;
+        }
 
         double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
 
-        if(currentValue == 0.0d && isDecimal) {
+        if(currentValue == 0.0d && getScreenSymbolsNum(EXTRA_SCREEN) > 0) {
             showResult("Cannot divide by zero");
             return;
         }
@@ -214,7 +225,12 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
 
     void multiplicationHandler() {
-        if(storedCount >= MAX_OPERATIONS || (lastOperation == '\u00d7' && !isDecimal)) return;
+        if(storedCount >= MAX_OPERATIONS) return;
+        if(!isDecimal && getScreenSymbolsNum(EXTRA_SCREEN) > 0) {
+            replaceLastOperation('\u00d7');
+            updateScreen(EXTRA_SCREEN);
+            return;
+        }
         
         double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
         
@@ -227,7 +243,12 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
 
     void substractionHandler() {
-        if(storedCount >= MAX_OPERATIONS || (lastOperation == '-' && !isDecimal)) return;
+        if(storedCount >= MAX_OPERATIONS) return;
+        if(!isDecimal && getScreenSymbolsNum(EXTRA_SCREEN) > 0) {
+            replaceLastOperation('-');
+            updateScreen(EXTRA_SCREEN);
+            return;
+        }
         
         double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
         
@@ -240,7 +261,12 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
 
     void additionHandler() {
-        if(storedCount >= MAX_OPERATIONS || (lastOperation == '+' && !isDecimal)) return;
+        if(storedCount >= MAX_OPERATIONS) return;
+        if(!isDecimal && getScreenSymbolsNum(EXTRA_SCREEN) > 0) {
+            replaceLastOperation('+');
+            updateScreen(EXTRA_SCREEN);
+            return;
+        }
         
         double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
         
@@ -253,8 +279,19 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
 
     void plusMinusHandler() {
-        if(getScreenSymbolsNum(MAIN_SCREEN) <= 0) return;
-        if(getScreenSymbolsNum(MAIN_SCREEN) == 1 && screenBuffer[MAIN_SCREEN].charAt(0) == '0') return;
+        switch(getScreenSymbolsNum(MAIN_SCREEN)) {
+        case 0: return;
+        case 1:
+            if(screenBuffer[MAIN_SCREEN].charAt(0) == '0') {
+                return;
+            }
+            break;
+        case 2:
+            if(screenBuffer[MAIN_SCREEN].charAt(0) == '0' && screenBuffer[MAIN_SCREEN].charAt(1) == '.') {
+                return;
+            }
+            break;
+        }
 
         double currentValue = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
         currentValue *= -1.0d;
@@ -270,10 +307,28 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
 
     void squareRootHandler() {
-        if(lastOperation > 0 || getScreenSymbolsNum(MAIN_SCREEN) <= 0) return;
-
-        double currentValue = Math.sqrt(Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()));
-        showResult(currentValue);
+        if(lastOperation > 0) {
+            resultHandler();
+            showResult(Math.sqrt(Double.parseDouble(outputArea[MAIN_SCREEN].getText())));
+            return;
+        } else {
+            switch(getScreenSymbolsNum(MAIN_SCREEN)) {
+            case 0:
+                showResult(Math.sqrt(Double.parseDouble(outputArea[MAIN_SCREEN].getText())));
+                break;
+            case 1:
+                if(screenBuffer[MAIN_SCREEN].charAt(0) == '0') {
+                    return;
+                }
+                break;
+            case 2:
+                if(screenBuffer[MAIN_SCREEN].charAt(0) == '0' && screenBuffer[MAIN_SCREEN].charAt(1) == '.') {
+                    return;
+                }
+                break;
+            }
+            showResult(getScreenSymbolsNum(MAIN_SCREEN) > 0 ? Math.sqrt(Double.parseDouble(screenBuffer[MAIN_SCREEN].toString())) : Math.sqrt(Double.parseDouble(outputArea[MAIN_SCREEN].getText())));   
+        }
     }
 
 
@@ -496,20 +551,5 @@ class GraphicCalculator extends JFrame implements KeyListener {
 
     boolean isInteger(double num) {
         return num % 1 == 0;
-    }
-    
-    
-    /** Handle the key typed event from the text field. */
-    public void keyTyped(KeyEvent e) {
-        System.out.println("keyTyped");
-    }
-    /** Handle the key-pressed event from the text field. */
-    public void keyPressed(KeyEvent e) {
-        System.out.println("keyPressed");
-    }
-
-    /** Handle the key-released event from the text field. */
-    public void keyReleased(KeyEvent e) {
-        System.out.println("keyReleased");
     }
 }
