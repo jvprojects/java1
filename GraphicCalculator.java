@@ -19,11 +19,13 @@ class GraphicCalculator extends JFrame {
     private final byte MAX_OPERATIONS = 24;
 
     // primitives
-    private byte storedStage = 0;
+    private byte storedCount = 0;
     private char lastOperation = 0;
     private boolean dotUsed = false;
-    private char[] storedOperations = new char[MAX_OPERATIONS];
-    private double[] storedNumbers = new double[MAX_OPERATIONS];
+    private boolean isDecimal = false;
+    private boolean[] hasItem = new boolean[MAX_OPERATIONS];
+    private char[] storedOperation = new char[MAX_OPERATIONS];
+    private double[] storedNumber = new double[MAX_OPERATIONS];
 
     // objects
     private StringBuilder[] screenBuffer = new StringBuilder[]{ new StringBuilder(), new StringBuilder() }; // current number of digits on the display
@@ -130,7 +132,7 @@ class GraphicCalculator extends JFrame {
     void digitsHandler(char digit) {
         if(getScreenSymbolsNum(MAIN_SCREEN) >= MAIN_SCREEN_MAX_SYMBOLS) return;
 
-        lastOperation = 0;
+        isDecimal = true;
         screenBuffer[MAIN_SCREEN].append(digit);
         updateScreen(MAIN_SCREEN, screenBuffer[MAIN_SCREEN].toString());
     }
@@ -156,6 +158,18 @@ class GraphicCalculator extends JFrame {
         case '\u00f7': // division
             divisionHandler();
             break;
+        case '\u00d7': // multiplication
+            multiplicationHandler();
+            break;
+        case '+':
+            additionHandler();
+            break;
+        case '-':
+            substractionHandler();
+            break;
+        case '=':
+            resultHandler();
+            break;
         }
     }
 
@@ -170,25 +184,69 @@ class GraphicCalculator extends JFrame {
 
 
     void divisionHandler() {
-        if(storedStage >= MAX_OPERATIONS || lastOperation == '\u00f7') return;
+        if(storedCount >= MAX_OPERATIONS || (lastOperation == '\u00f7' && !isDecimal)) return;
 
-        storedNumbers[storedStage] = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
-        lastOperation = storedOperations[storedStage] = '\u00f7';
+        double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
 
-        pushToExtraScreen(storedNumbers[storedStage], storedOperations[storedStage]);
-        updateScreen(EXTRA_SCREEN);
+        if(currentValue == 0.0d && isDecimal) {
+            showResult("Cannot divide by zero");
+            return;
+        }
+
+        if(!pushValueToBuffer(currentValue, '\u00f7')) return;
+
+        clearInfoOnMainScreen();
+        lastOperation = '\u00f7';
+        pushValueToStack(currentValue, lastOperation);
+    }
+
+
+    void multiplicationHandler() {
+        if(storedCount >= MAX_OPERATIONS || (lastOperation == '\u00d7' && !isDecimal)) return;
         
-        storedStage++;
+        double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
+        
+        if(!pushValueToBuffer(currentValue, '\u00d7')) return;
+        
+        clearInfoOnMainScreen();
+        lastOperation = '\u00d7';
+        pushValueToStack(currentValue, lastOperation);
+    }
+    
+    
+    void substractionHandler() {
+        if(storedCount >= MAX_OPERATIONS || (lastOperation == '-' && !isDecimal)) return;
+        
+        double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
+        
+        if(!pushValueToBuffer(currentValue, '-')) return;
+        
+        clearInfoOnMainScreen();
+        lastOperation = '-';
+        pushValueToStack(currentValue, lastOperation);
+    }
+    
+    
+    void additionHandler() {
+        if(storedCount >= MAX_OPERATIONS || (lastOperation == '+' && !isDecimal)) return;
+        
+        double currentValue = getScreenSymbolsNum(MAIN_SCREEN) != 0 ? Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()) : 0.0d;
+        
+        if(!pushValueToBuffer(currentValue, '+')) return;
+        
+        clearInfoOnMainScreen();
+        lastOperation = '+';
+        pushValueToStack(currentValue, lastOperation);
     }
 
 
     void plusMinusHandler() {
         if(getScreenSymbolsNum(MAIN_SCREEN) <= 0) return;
 
-        double temp = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
-        temp *= -1.0d;
+        double currentValue = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
+        currentValue *= -1.0d;
 
-        if(temp < 0.0d) {
+        if(currentValue < 0.0d) {
             screenBuffer[MAIN_SCREEN].insert(0, '-');
         } else {
             screenBuffer[MAIN_SCREEN].replace(0, 1, "");
@@ -201,9 +259,66 @@ class GraphicCalculator extends JFrame {
     void squareRootHandler() {
         if(lastOperation > 0 || getScreenSymbolsNum(MAIN_SCREEN) <= 0) return;
 
-        double temp = Math.sqrt(Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()));
-        showResult(temp);
-        setDefaults(temp);
+        double currentValue = Math.sqrt(Double.parseDouble(screenBuffer[MAIN_SCREEN].toString()));
+        showResult(currentValue);
+    }
+
+
+    void resultHandler() {
+        if(getScreenSymbolsNum(MAIN_SCREEN) == 0 && getScreenSymbolsNum(EXTRA_SCREEN) == 0) return;
+        if(getScreenSymbolsNum(MAIN_SCREEN) == 0 && lastOperation == '\u00f7') {
+            showResult("Cannot divide by zero");
+            return;
+        }
+
+        double lastValue = Double.parseDouble(screenBuffer[MAIN_SCREEN].toString());
+        
+        if(lastValue == 0.0d && lastOperation == '\u00f7') {
+            showResult("Cannot divide by zero");
+            return;
+        }
+
+        pushValueToStack(lastValue);
+
+        byte i;
+
+        // check for special operations which should happen first, like multiplication or division
+        for(i = 0; i < storedCount; ++i) {
+            if(!hasItem[i])
+                continue;
+
+            switch(storedOperation[i]) {
+            case '\u00d7': // multiplication
+                storedNumber[i] *= storedNumber[i+1];
+                lastValue = storedNumber[i+1] = storedNumber[i];
+                hasItem[i] = false; // Set "invisible" the item at the given position in the list
+                break;
+            case '\u00f7': // division
+                storedNumber[i] /= storedNumber[i+1];
+                lastValue = storedNumber[i+1] = storedNumber[i];
+                hasItem[i] = false; // Set "invisible" the item at the given position in the list
+                break;
+            }
+        }
+        // check for lasts operations, like addition or substraction
+        for(i = 0; i < storedCount; ++i) {
+            if(!hasItem[i])
+                continue;
+
+            switch(storedOperation[i]) {
+            case '+':
+                storedNumber[i] += storedNumber[i+1];
+                lastValue = storedNumber[i+1] = storedNumber[i];
+                hasItem[i] = false; // Set "invisible" the item at the given position in the list
+                break;
+            case '-':
+                storedNumber[i] -= storedNumber[i+1];
+                lastValue = storedNumber[i+1] = storedNumber[i];
+                hasItem[i] = false; // Set "invisible" the item at the given position in the list
+                break;
+            }
+        }
+        showResult(lastValue);
     }
 
 
@@ -221,36 +336,69 @@ class GraphicCalculator extends JFrame {
         } else {
             result = "0";
             dotUsed = false;
+            isDecimal = false;
         }
         updateScreen(MAIN_SCREEN, result);
     }
-
-
+    
+    
     void setDefaults() {
-        dotUsed = false;
-        storedStage = 0;
-        lastOperation = 0;
-        updateScreen(MAIN_SCREEN, "0");
-        Arrays.fill(storedNumbers, 0.0d);
-        screenBuffer[MAIN_SCREEN].setLength(0);
-        screenBuffer[EXTRA_SCREEN].setLength(0);
-        updateScreen(EXTRA_SCREEN);
-    }
-
-
-    void setDefaults(double valueToDisplay) {
-        dotUsed = false;
-        storedStage = 0;
-        lastOperation = 0;
-        showResult(valueToDisplay);
-        Arrays.fill(storedNumbers, 0.0d);
-        screenBuffer[EXTRA_SCREEN].setLength(0);
-        updateScreen(EXTRA_SCREEN);
+        showResult();
     }
     
     
-    void resetMainScreen() {
+    void clearInfoOnMainScreen() {
+        clearScreen(MAIN_SCREEN);
+        updateScreen(EXTRA_SCREEN);
+
+        dotUsed = false;
+        isDecimal = false;
+    }
+
+
+    void showResult() {
+        dotUsed = false;
+        storedCount = 0;
+        isDecimal = false;
+        lastOperation = 0;
+        clearScreen(MAIN_SCREEN);
+        clearScreen(EXTRA_SCREEN);
+        Arrays.fill(hasItem, false);
+    }
+
+
+    void showResult(double valueToDisplay) {
+        dotUsed = false;
+        storedCount = 0;
+        isDecimal = false;
+        lastOperation = 0;
+        showOn(valueToDisplay);
+        Arrays.fill(hasItem, false);
+        clearScreen(EXTRA_SCREEN);
         screenBuffer[MAIN_SCREEN].setLength(0);
+    }
+    
+    
+    void showResult(String valueToDisplay) {
+        dotUsed = false;
+        storedCount = 0;
+        isDecimal = false;
+        lastOperation = 0;
+        showOn(valueToDisplay);
+        Arrays.fill(hasItem, false);
+        clearScreen(EXTRA_SCREEN);
+        screenBuffer[MAIN_SCREEN].setLength(0);
+    }
+    
+    
+    void clearScreen(byte screen) {
+        if(screen == MAIN_SCREEN) {
+            updateScreen(MAIN_SCREEN, "0");
+            screenBuffer[MAIN_SCREEN].setLength(0);
+        } else {
+            screenBuffer[EXTRA_SCREEN].setLength(0);
+            updateScreen(EXTRA_SCREEN);
+        }
     }
 
 
@@ -264,18 +412,65 @@ class GraphicCalculator extends JFrame {
     }
 
 
-    void showResult(double result) {
+    void showOn(double result) {
         if(!isInteger(result)) {
             outputArea[MAIN_SCREEN].setText(String.valueOf(result));
         } else {
             outputArea[MAIN_SCREEN].setText(String.valueOf(Math.round(result)));
         }
     }
+    
+    
+    void showOn(String result) {
+        outputArea[MAIN_SCREEN].setText(result);
+    }
 
+    
+    boolean pushValueToBuffer(double value, char operation) {
+        if(isDecimal) {
+            appendToExtraScreen(value, operation);
+        } else {
+            if(getScreenSymbolsNum(EXTRA_SCREEN) == 0) {
+                appendToExtraScreen(value, operation);
+            } else {
+                replaceLastOperation(operation);
+                updateScreen(EXTRA_SCREEN);
+                return false;
+            }
+        }
+        return true;
+    }
+    
 
-    void pushToExtraScreen(double value, char operation) {
-        screenBuffer[EXTRA_SCREEN].append(value);
+    void appendToExtraScreen(double value, char operation) {
+        if(isInteger(value)) {
+            screenBuffer[EXTRA_SCREEN].append(Double.valueOf(value).longValue());
+        } else {
+            screenBuffer[EXTRA_SCREEN].append(value);
+        }
+
         screenBuffer[EXTRA_SCREEN].append(' ');
+        screenBuffer[EXTRA_SCREEN].append(operation);
+        screenBuffer[EXTRA_SCREEN].append(' ');
+    }
+    
+    
+    void pushValueToStack(double value, char operation) {
+        hasItem[storedCount] = true;
+        storedNumber[storedCount] = value;
+        storedOperation[storedCount] = operation;
+        storedCount++;
+    }
+    
+    
+    void pushValueToStack(double value) {
+        hasItem[storedCount] = true;
+        storedNumber[storedCount] = value;
+    }
+
+
+    void replaceLastOperation(char operation) {
+        screenBuffer[EXTRA_SCREEN].setLength(getScreenSymbolsNum(EXTRA_SCREEN) - 2);
         screenBuffer[EXTRA_SCREEN].append(operation);
         screenBuffer[EXTRA_SCREEN].append(' ');
     }
